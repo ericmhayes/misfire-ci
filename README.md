@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/svg/misfire-lockup-stacked-dark.svg">
-    <img alt="Misfire" src="docs/brand/svg/misfire-lockup-stacked-light.svg" width="300">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ericmhayes/misfire-ci/main/docs/brand/png/misfire-lockup-stacked-dark%402x.png">
+    <img alt="Misfire" src="https://raw.githubusercontent.com/ericmhayes/misfire-ci/main/docs/brand/png/misfire-lockup-stacked-light%402x.png" width="300">
   </picture>
 </p>
 
@@ -11,7 +11,7 @@
   <a href="https://github.com/ericmhayes/misfire-ci/actions/workflows/ci.yml"><img src="https://github.com/ericmhayes/misfire-ci/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://pypi.org/project/misfire-ci/"><img src="https://img.shields.io/pypi/v/misfire-ci" alt="PyPI"></a>
   <a href="https://pypi.org/project/misfire-ci/"><img src="https://img.shields.io/pypi/pyversions/misfire-ci" alt="Python"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
+  <a href="https://github.com/ericmhayes/misfire-ci/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
 </p>
 
 An open-source GitHub Action that, when a build goes red, runs an **agentic AI
@@ -103,4 +103,5 @@ pip install -e ".[dev]"
 
 ## License
 
-MIT — bring-your-own-key (you supply your own Anthropic API key).
+MIT — bring-your-own-key: you supply your own provider API key (Anthropic or
+OpenAI). Misfire never provides one.
