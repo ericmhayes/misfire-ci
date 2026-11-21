@@ -103,5 +103,4 @@ pip install -e ".[dev]"
 
 ## License
 
-MIT — bring-your-own-key: you supply your own provider API key (Anthropic or
-OpenAI). Misfire never provides one.
+MIT — see [LICENSE](https://github.com/ericmhayes/misfire-ci/blob/main/LICENSE).
