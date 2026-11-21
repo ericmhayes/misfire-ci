@@ -9,8 +9,8 @@
 
 <p align="center">
   <a href="https://github.com/ericmhayes/misfire-ci/actions/workflows/ci.yml"><img src="https://github.com/ericmhayes/misfire-ci/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://pypi.org/project/misfire-ci/"><img src="https://img.shields.io/pypi/v/misfire-ci" alt="PyPI"></a>
-  <a href="https://pypi.org/project/misfire-ci/"><img src="https://img.shields.io/pypi/pyversions/misfire-ci" alt="Python"></a>
+  <a href="https://pypi.org/project/misfire-ci/"><img src="https://img.shields.io/pypi/v/misfire-ci?v=011" alt="PyPI"></a>
+  <a href="https://pypi.org/project/misfire-ci/"><img src="https://img.shields.io/pypi/pyversions/misfire-ci?v=011" alt="Python"></a>
   <a href="https://github.com/ericmhayes/misfire-ci/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
 </p>
 
