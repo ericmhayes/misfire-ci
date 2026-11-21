@@ -7,6 +7,8 @@ changes). Dates are absolute (YYYY-MM-DD).
 
 ## [Unreleased]
 
+## [0.1.0] — 2026-11-21
+
 ### Added
 - **Advisory CI-failure analysis** — on a red build, an agentic investigation
   over the failing logs, the PR diff, and test history, posted as a single
