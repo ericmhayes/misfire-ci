@@ -7,6 +7,16 @@ changes). Dates are absolute (YYYY-MM-DD).
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-11-21
+
+### Fixed
+- **PyPI README rendering** — the project page's header logo was broken because
+  it used a relative path to an SVG; PyPI renders the README standalone (relative
+  paths 404) and strips SVG images. Now an absolute PNG URL.
+- **License section** — reduced to the license itself (MIT); the
+  bring-your-own-key note it carried (and its outdated "Anthropic API key"
+  wording) is already covered in the intro.
+
 ## [0.1.0] — 2026-11-21
 
 ### Added
