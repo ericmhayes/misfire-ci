@@ -59,37 +59,44 @@ def test_create_pr_comment_posts_body_and_returns_url() -> None:
     assert _client(handler).create_pr_comment(7, "hello") == url
 
 
-def test_fetch_failing_logs_concatenates_zip_entries() -> None:
-    archive = _zip_bytes(
-        {
-            "build/1_step.txt": "compiling...\n",
-            "test/2_step.txt": "E AssertionError\n",
-            "empty_dir/": "",  # directory entry, must be skipped
-        }
-    )
+def _jobs(*jobs: dict) -> dict:
+    return {"jobs": list(jobs)}
 
+
+def test_fetch_failing_logs_fetches_only_failed_jobs() -> None:
+    # A matrix run: one leg failed, one passed. Only the failed leg's logs should
+    # be fetched — the passing leg must never be requested.
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == f"/repos/{REPO}/actions/runs/99/logs"
-        return httpx.Response(200, content=archive)
+        path = request.url.path
+        if path == f"/repos/{REPO}/actions/runs/99/jobs":
+            assert request.url.params["filter"] == "latest"
+            return httpx.Response(
+                200,
+                json=_jobs(
+                    {"id": 101, "name": "test (3.11)", "conclusion": "failure"},
+                    {"id": 102, "name": "test (3.12)", "conclusion": "success"},
+                ),
+            )
+        if path == f"/repos/{REPO}/actions/jobs/101/logs":
+            return httpx.Response(200, text="E   AssertionError: boom on 3.11\n")
+        raise AssertionError(f"unexpected request to {path}")  # passing job not fetched
 
     out = _client(handler).fetch_failing_logs(99)
-    assert "compiling..." in out
-    assert "E AssertionError" in out
-    assert "===== build/1_step.txt =====" in out
-    # Entries are concatenated in sorted order.
-    assert out.index("build/1_step.txt") < out.index("test/2_step.txt")
+    assert "boom on 3.11" in out
+    assert "===== failed job: test (3.11) =====" in out
+    assert "3.12" not in out  # the passing leg is absent
 
 
-def test_fetch_failing_logs_is_truncated_before_return() -> None:
-    # A huge log must not come back whole — truncate_logs trims it, keeping the
-    # failing tail and rescuing the first error block from the dropped head.
+def test_fetch_failing_logs_truncates_each_job() -> None:
     big = "\n".join(
         ["E   AssertionError: boom near the top"] + [f"filler line {i}" for i in range(5000)]
     )
-    archive = _zip_bytes({"job/1_step.txt": big})
 
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, content=archive)
+        if request.url.path.endswith("/jobs"):
+            job = {"id": 7, "name": "test", "conclusion": "failure"}
+            return httpx.Response(200, json=_jobs(job))
+        return httpx.Response(200, text=big)
 
     out = _client(handler).fetch_failing_logs(99)
     assert out.count("\n") < 1000  # trimmed well below the 5000-line input
@@ -99,15 +106,54 @@ def test_fetch_failing_logs_is_truncated_before_return() -> None:
 
 
 def test_fetch_failing_logs_follows_redirect_to_download() -> None:
-    archive = _zip_bytes({"job/1_step.txt": "boom\n"})
-
     def handler(request: httpx.Request) -> httpx.Response:
-        if request.url.path.endswith("/logs"):
-            return httpx.Response(302, headers={"Location": "https://blob.example/logs.zip"})
+        if request.url.path.endswith("/jobs"):
+            job = {"id": 7, "name": "test", "conclusion": "failure"}
+            return httpx.Response(200, json=_jobs(job))
+        if request.url.path.endswith("/jobs/7/logs"):
+            return httpx.Response(302, headers={"Location": "https://blob.example/j.txt"})
         assert request.url.host == "blob.example"
-        return httpx.Response(200, content=archive)
+        return httpx.Response(200, text="boom\n")
 
     assert "boom" in _client(handler).fetch_failing_logs(99)
+
+
+def test_fetch_failing_logs_falls_back_to_run_archive() -> None:
+    # No failed jobs reported (older runner / API gap) → fall back to the whole
+    # run log archive so a diagnosis is still possible.
+    archive = _zip_bytes(
+        {
+            "build/1_step.txt": "compiling...\n",
+            "test/2_step.txt": "E AssertionError\n",
+            "empty_dir/": "",  # directory entry, must be skipped
+        }
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/jobs"):
+            return httpx.Response(200, json=_jobs())  # no jobs → fallback
+        assert request.url.path == f"/repos/{REPO}/actions/runs/99/logs"
+        return httpx.Response(200, content=archive)
+
+    out = _client(handler).fetch_failing_logs(99)
+    assert "compiling..." in out
+    assert "E AssertionError" in out
+    assert "===== build/1_step.txt =====" in out
+
+
+def test_fetch_failing_logs_caps_number_of_failed_jobs() -> None:
+    # More failed legs than the per-run cap: the overflow is noted, not fetched.
+    many = [{"id": 200 + i, "name": f"leg-{i}", "conclusion": "failure"} for i in range(8)]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/jobs"):
+            return httpx.Response(200, json=_jobs(*many))
+        job_id = int(request.url.path.split("/jobs/")[1].split("/logs")[0])
+        assert job_id < 205, "a job beyond the cap was fetched"  # only first 5 (200-204)
+        return httpx.Response(200, text=f"fail {job_id}\n")
+
+    out = _client(handler).fetch_failing_logs(99)
+    assert "more failed job(s) omitted" in out
 
 
 def test_get_run_parses_workflow_and_sha() -> None:

@@ -115,7 +115,7 @@ def get_test_history(test_id: str) -> str:
 @tool
 def post_pr_comment(
     root_cause: str,
-    category: str,
+    category: FailureCategory,
     confidence: float,
     suggested_fix: Optional[str] = None,
     failing_test_id: Optional[str] = None,

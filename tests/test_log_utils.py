@@ -38,3 +38,22 @@ def test_truncate_tail_only_when_no_error_in_head() -> None:
     lines = out.splitlines()
     assert lines[0].startswith("...")   # leading truncation marker
     assert lines[-1] == "noise 499"
+
+
+def test_clamps_a_pathologically_long_single_line() -> None:
+    # One 10 MB minified line in an otherwise short log must not pass through
+    # whole — line-based trimming alone wouldn't catch it.
+    logs = "ok\n" + ("x" * 10_000_000) + "\ndone"
+    out = truncate_logs(logs, tail_lines=200)
+    assert len(out) < 50_000
+    assert "line truncated" in out
+    assert "done" in out  # the real tail survives
+
+
+def test_caps_total_output_size() -> None:
+    # Many medium lines, each under the per-line cap, still can't exceed the
+    # overall byte ceiling.
+    logs = "\n".join("y" * 1000 for _ in range(500))  # ~500 KB, 500 lines
+    out = truncate_logs(logs, tail_lines=500)
+    assert len(out) <= 100_000 + 100  # total cap (plus the short notice prefix)
+    assert "output capped" in out

@@ -17,6 +17,10 @@ from .log_utils import truncate_logs
 
 _API_ROOT = "https://api.github.com"
 
+# Cap on how many failed jobs' logs we pull into one investigation (cost guard;
+# a run with many failed matrix legs would otherwise fetch them all).
+_MAX_FAILED_JOBS = 5
+
 
 @dataclass(frozen=True)
 class RunRef:
@@ -71,15 +75,66 @@ class GitHubClient:
             parts.append(f"===== {name} =====\n{text}")
         return "\n".join(parts)
 
-    def fetch_failing_logs(self, run_id: int) -> str:
-        """Return the logs for a workflow run, trimmed for the model.
+    def list_failed_jobs(self, run_id: int) -> list[tuple[int, str]]:
+        """Return `(job_id, job_name)` for the run's jobs that *failed*.
 
-        Runs the raw logs through `log_utils.truncate_logs` so a multi-MB CI log
-        never gets dumped into the model context wholesale (cost
-        guardrail). The trimming keeps the failing tail plus the first
-        error/traceback block.
+        Uses the latest attempt of each job. A run can contain many jobs (matrix
+        legs, lint/test/build) and usually only some fail; isolating the failed
+        ones is what keeps `fetch_failing_logs` from mistaking a *passing* job's
+        output for the failure.
         """
-        return truncate_logs(self._download_run_logs(run_id))
+        with self._client() as client:
+            resp = client.get(
+                f"/repos/{self.repo}/actions/runs/{run_id}/jobs",
+                params={"filter": "latest", "per_page": 100},
+            )
+            resp.raise_for_status()
+        jobs = resp.json().get("jobs", [])
+        return [
+            (j["id"], j.get("name") or f"job {j['id']}")
+            for j in jobs
+            if (j.get("conclusion") or "") == "failure"
+        ]
+
+    def fetch_job_logs(self, job_id: int) -> str:
+        """Fetch the raw logs for a single job (untruncated)."""
+        with self._client() as client:
+            resp = client.get(f"/repos/{self.repo}/actions/jobs/{job_id}/logs")
+            resp.raise_for_status()
+        return resp.text
+
+    def fetch_failing_logs(self, run_id: int) -> str:
+        """Return the logs of the run's *failing jobs*, trimmed for the model.
+
+        Fetches only the jobs that actually failed (so on a matrix build the
+        model sees the broken leg, not a green one), labels each, and runs each
+        through `log_utils.truncate_logs` so a multi-MB CI log never lands in the
+        model context wholesale (cost guardrail). Falls back to the whole-run log
+        archive when the jobs API yields nothing usable (older runners, API
+        hiccup) so a diagnosis is still possible.
+        """
+        try:
+            failed = self.list_failed_jobs(run_id)
+        except Exception:
+            failed = []
+
+        parts: list[str] = []
+        for job_id, name in failed[:_MAX_FAILED_JOBS]:
+            try:
+                logs = truncate_logs(self.fetch_job_logs(job_id))
+            except Exception:
+                continue  # skip a job whose logs are unavailable; keep the rest
+            parts.append(f"===== failed job: {name} =====\n{logs}")
+
+        if not parts:
+            # No per-job logs available — fall back to the whole-run archive.
+            return truncate_logs(self._download_run_logs(run_id))
+
+        if len(failed) > _MAX_FAILED_JOBS:
+            parts.append(
+                f"... [{len(failed) - _MAX_FAILED_JOBS} more failed job(s) omitted] ..."
+            )
+        return "\n\n".join(parts)
 
     def get_run(self, run_id: int) -> RunRef:
         """Fetch metadata (workflow, head SHA, conclusion) for a single run."""

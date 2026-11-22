@@ -7,7 +7,23 @@ changes). Dates are absolute (YYYY-MM-DD).
 
 ## [Unreleased]
 
+### Changed
+- **Diagnoses read the failing job, not the whole run** — `fetch_failing_logs`
+  now pulls only the jobs that actually failed (per-job logs), so on a matrix
+  build the model sees the broken leg instead of a passing job's tail. Falls back
+  to the whole-run archive when the jobs API has nothing usable.
+- **Real-vs-flaky detection spans more test runners** — the failure-marker set
+  now recognizes Go (`--- FAIL`), Jest/Mocha/Vitest (`✕`), and TAP (`not ok`) in
+  addition to pytest, so a flaky non-Python test is no longer mislabeled as a
+  real regression.
+- **The model now sees full tool-argument docs** — per-argument descriptions and
+  the `category` enum are included in the tool schema (previously only the first
+  docstring line reached the model, so it guessed the category).
+
 ### Fixed
+- **Oversized logs are bounded by bytes, not just lines** — individual lines are
+  clamped and the whole log slice is capped, so one pathological line (a huge
+  minified bundle / single-line JSON) can't flood the model context.
 - **Never fail the CI step** — the `explain` path now catches any operational
   error (provider rate-limit/outage, GitHub API error, expired logs, a missing
   provider SDK), reports the cause to stderr, and exits 0. Misfire is

@@ -18,9 +18,20 @@ from .github_client import GitHubClient
 from .history import TestHistory
 
 # A test is considered *failed* in a run when its id appears on a line that also
-# carries a failure marker: pytest's `FAILED path::test` summary, an error/
-# assertion line, or the `____ test_name ____` failure section header.
-_FAIL_MARKER = re.compile(r"\bFAILED\b|\bERROR\b|AssertionError|^_+ .* _+$", re.IGNORECASE)
+# carries a failure marker. The markers span the common test runners so the
+# flaky signal isn't pytest-only — a missed marker makes a flaky failure look
+# like it "passed on every unrelated run" and get mislabeled REAL, the worst
+# direction to be wrong in.
+_FAIL_MARKER = re.compile(
+    r"\bFAIL(ED|URE)?\b"  # pytest `FAILED`, generic FAIL/FAILURE, Jest `FAIL path`
+    r"|\bERROR\b"
+    r"|AssertionError"
+    r"|---\s*FAIL"  # Go: `--- FAIL: TestName`
+    r"|\bnot ok\b"  # TAP (node-tap, prove)
+    r"|[✕✗×]"  # Jest / Mocha / Vitest failing glyphs
+    r"|^_+ .* _+$",  # pytest `____ test_name ____` section header
+    re.IGNORECASE,
+)
 
 
 def _test_failed_in_logs(logs: str, test_id: str) -> bool:
