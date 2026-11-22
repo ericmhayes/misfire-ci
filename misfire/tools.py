@@ -16,7 +16,7 @@ from . import flaky
 from .comment import MARKER, render_comment
 from .github_client import GitHubClient
 from .history import TestHistory, TestHistoryProvider
-from .schema import FailureCategory, Verdict
+from .schema import FailureCategory, FlakyAssessment, FlakyClassification, Verdict
 from .scrub import scrub_secrets
 
 
@@ -152,7 +152,17 @@ def post_pr_comment(
 
     assessment = None
     if failing_test_id:
-        assessment = flaky.classify(_require_history().get_history(failing_test_id))
+        try:
+            assessment = flaky.classify(_require_history().get_history(failing_test_id))
+        except Exception:
+            # The history lookup can fail (expired run logs 410, GitHub
+            # rate-limit, network). Never block a ready advisory on it: degrade to
+            # an explicit UNKNOWN verdict and still post the diagnosis.
+            assessment = FlakyAssessment(
+                classification=FlakyClassification.UNKNOWN,
+                confidence=0.0,
+                rationale="Test history was unavailable, so flakiness could not be assessed.",
+            )
 
     verdict = Verdict(
         root_cause=root_cause,

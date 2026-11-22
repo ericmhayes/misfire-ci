@@ -37,3 +37,6 @@ PLANNING.md
 MISFIRE_ANALYSIS.md
 .claude/
 .project-status.json
+
+# uv (not used for dependency management here; pyproject + pip is canonical)
+uv.lock

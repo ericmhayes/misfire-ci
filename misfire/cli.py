@@ -156,23 +156,37 @@ def main(argv: list[str] | None = None) -> int:
                 file=sys.stderr,
             )
             return 2
-        client = _github_client()
-        pr_number = args.pr
-        if pr_number is None:
-            pr_number = client.find_pr_number_for_run(args.run)
+        try:
+            client = _github_client()
+            pr_number = args.pr
             if pr_number is None:
-                print(
-                    f"No pull request found for run {args.run}; nothing to comment on.",
-                    file=sys.stderr,
-                )
-                return 0
-        limits = {"model": providers.resolve_model(args.provider, args.model)}
-        if args.max_turns is not None:
-            limits["max_turns"] = args.max_turns
-        if args.token_budget is not None:
-            limits["token_budget"] = args.token_budget
-        run_fn = providers.get_run(args.provider)
-        body = run_fn(run_id=args.run, pr_number=pr_number, client=client, **limits)
+                pr_number = client.find_pr_number_for_run(args.run)
+                if pr_number is None:
+                    print(
+                        f"No pull request found for run {args.run}; nothing to comment on.",
+                        file=sys.stderr,
+                    )
+                    return 0
+            limits = {"model": providers.resolve_model(args.provider, args.model)}
+            if args.max_turns is not None:
+                limits["max_turns"] = args.max_turns
+            if args.token_budget is not None:
+                limits["token_budget"] = args.token_budget
+            run_fn = providers.get_run(args.provider)
+            body = run_fn(run_id=args.run, pr_number=pr_number, client=client, **limits)
+        except Exception as exc:
+            # Misfire is advisory-only: an operational failure here — provider
+            # rate-limit/outage, GitHub API error, expired logs, a missing
+            # provider SDK — must never fail the CI step. Report the cause to
+            # stderr (visible in the Action log) and exit 0 so the build status
+            # is unchanged and no downstream webhook fires.
+            print(
+                f"Misfire could not complete the investigation for run {args.run}: "
+                f"{type(exc).__name__}: {exc}. No advisory was posted; your build "
+                "status is unchanged (Misfire never fails your CI).",
+                file=sys.stderr,
+            )
+            return 0
         # Only a real advisory (it carries the hidden marker) goes to stdout, which
         # the Action captures as its `advisory` output. Diagnostics — "nothing to
         # post", turn/token-limit stops — go to stderr so they don't trigger a

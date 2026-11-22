@@ -94,6 +94,14 @@ def run(
                 getattr(usage, "output_tokens", 0) or 0
             )
         if response.stop_reason != "tool_use":
+            if response.stop_reason == "max_tokens" and posted_body is None:
+                # The response was cut off at max_tokens mid-thought. Breaking here
+                # would return "" and post nothing — a silent no-op. Surface it as
+                # a diagnostic (cli routes this to stderr, not the PR).
+                return (
+                    "Misfire stopped: the model response hit the token limit before "
+                    "it could post an advisory; no advisory was posted."
+                )
             break
 
         messages.append({"role": "assistant", "content": response.content})

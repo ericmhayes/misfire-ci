@@ -92,6 +92,12 @@ def final(text: str = "", *, tokens: int = 0) -> _Response:
     return _Response("end_turn", [_Block("text", text=text)], usage)
 
 
+def truncated(text: str = "", *, tokens: int = 0) -> _Response:
+    """A turn cut off at the token limit (stop_reason ``max_tokens``)."""
+    usage = _Usage(tokens, 0) if tokens else None
+    return _Response("max_tokens", [_Block("text", text=text)], usage)
+
+
 # ---------------------------------------------------------------------------
 # Scripted OpenAI — the same idea for the OpenAI adapter. Shapes match what
 # agents.openai.run reads: response.choices[0].message with .tool_calls (each
@@ -120,8 +126,10 @@ class _OAMessage:
 
 
 class _OAResponse:
-    def __init__(self, message: _OAMessage) -> None:
-        self.choices = [type("_Choice", (), {"message": message})()]
+    def __init__(self, message: _OAMessage, *, finish_reason: str | None = None) -> None:
+        self.choices = [
+            type("_Choice", (), {"message": message, "finish_reason": finish_reason})()
+        ]
 
 
 class _OACompletions:
@@ -156,6 +164,21 @@ def oa_tool_use(name: str, tool_input: dict, *, id: str = "call") -> _OAResponse
     )
 
 
-def oa_final(text: str = "") -> _OAResponse:
-    """The terminal turn (model stops calling tools)."""
-    return _OAResponse(_OAMessage(content=text, tool_calls=None))
+def oa_tool_use_raw(name: str, arguments: str, *, id: str = "call") -> _OAResponse:
+    """A tool-call turn with raw (possibly malformed) argument text.
+
+    OpenAI delivers tool-call arguments as a JSON string the adapter must parse;
+    this lets a test inject invalid JSON to exercise that failure path.
+    """
+    return _OAResponse(_OAMessage(tool_calls=[_OAToolCall(id, name, arguments)]))
+
+
+def oa_final(text: str = "", *, finish_reason: str | None = None) -> _OAResponse:
+    """The terminal turn (model stops calling tools).
+
+    Pass ``finish_reason="length"`` to simulate a response truncated at the token
+    limit.
+    """
+    return _OAResponse(
+        _OAMessage(content=text, tool_calls=None), finish_reason=finish_reason
+    )

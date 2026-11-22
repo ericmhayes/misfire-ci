@@ -97,12 +97,21 @@ def run(
             )
         message = response.choices[0].message
         if not message.tool_calls:
+            if getattr(response.choices[0], "finish_reason", None) == "length" and (
+                posted_body is None
+            ):
+                # Response truncated at the token limit with nothing posted —
+                # mirror the Claude adapter and surface a diagnostic rather than
+                # returning "" (a silent no-op).
+                return (
+                    "Misfire stopped: the model response hit the token limit before "
+                    "it could post an advisory; no advisory was posted."
+                )
             break
 
         messages.append(message)
         for call in message.tool_calls:
             name = call.function.name
-            arguments = json.loads(call.function.arguments or "{}")
             if name == "post_pr_comment" and posted_body is not None:
                 output = (
                     "post_pr_comment was already called this run; the advisory "
@@ -110,12 +119,19 @@ def run(
                 )
             else:
                 try:
+                    # Parse the arguments INSIDE the try: OpenAI delivers tool-call
+                    # arguments as a raw JSON string, and a malformed one must be
+                    # handled like any other bad tool call — not crash the run.
+                    arguments = json.loads(call.function.arguments or "{}")
                     # post_pr_comment renders and returns the advisory body; capture it.
                     output = _registry.dispatch(name, arguments)
                     if name == "post_pr_comment":
                         posted_body = output
                 except Exception as exc:
-                    # Never crash the run on a bad tool call (see claude.py).
+                    # Never crash the run on a bad tool call — unknown tool,
+                    # malformed JSON arguments, or wrong/missing args (a hostile
+                    # log can provoke these). Hand the error back so the model can
+                    # correct and retry.
                     output = (
                         f"Tool '{name}' failed: {exc}. Check the arguments and try again."
                     )

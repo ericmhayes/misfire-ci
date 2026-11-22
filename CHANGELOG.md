@@ -7,6 +7,21 @@ changes). Dates are absolute (YYYY-MM-DD).
 
 ## [Unreleased]
 
+### Fixed
+- **Never fail the CI step** — the `explain` path now catches any operational
+  error (provider rate-limit/outage, GitHub API error, expired logs, a missing
+  provider SDK), reports the cause to stderr, and exits 0. Misfire is
+  advisory-only; an internal blip must never turn a build red.
+- **OpenAI adapter: malformed tool-call arguments no longer crash the run** — the
+  argument JSON is now parsed inside the error-handling block and fed back to the
+  model like any other bad tool call.
+- **A flaky-history lookup failure no longer blocks the advisory** — if test
+  history can't be fetched (e.g. expired run logs), `post_pr_comment` degrades to
+  an explicit "flakiness unknown" verdict and still posts the diagnosis.
+- **Token-limit truncation surfaces a diagnostic instead of a silent no-op** —
+  both adapters now report when a response is cut off at the token limit before
+  an advisory is posted.
+
 ## [0.1.1] — 2026-11-21
 
 ### Fixed
