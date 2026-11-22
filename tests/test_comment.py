@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from misfire.comment import render_comment
 from misfire.schema import (
+    Evidence,
     FailureCategory,
     FlakyAssessment,
     FlakyClassification,
@@ -60,3 +61,29 @@ def test_renders_real_verdict_line() -> None:
         )
     )
     assert "🔴 Likely a real failure (90%)" in out
+
+
+def test_no_evidence_block_without_evidence() -> None:
+    assert "Evidence" not in render_comment(_verdict())
+
+
+def test_renders_evidence_run_link_and_history() -> None:
+    out = render_comment(
+        _verdict(),
+        Evidence(
+            run_url="https://github.com/o/r/actions/runs/99",
+            sampled_runs=20,
+            failures=8,
+            failures_on_other=7,
+            retried_and_passed=1,
+        ),
+    )
+    assert "<details><summary>Evidence</summary>" in out
+    assert "Failing run: https://github.com/o/r/actions/runs/99" in out
+    assert "sampled 20 recent run(s) — 8 failed, 7 on other branches, 1× passed on retry." in out
+
+
+def test_evidence_run_link_only_when_no_history() -> None:
+    out = render_comment(_verdict(), Evidence(run_url="https://github.com/o/r/actions/runs/5"))
+    assert "Failing run:" in out
+    assert "History:" not in out

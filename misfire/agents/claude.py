@@ -49,6 +49,7 @@ def run(
     tools.bind(client)
     tools.bind_history(history_provider or GitHubTestHistoryProvider(client, run_id))
     tools.set_pr_number(pr_number)
+    tools.set_run_id(run_id)
 
     anthropic_client = anthropic_client or anthropic.Anthropic()
     model = model or MODEL

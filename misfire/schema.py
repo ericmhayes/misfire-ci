@@ -39,6 +39,21 @@ class FlakyAssessment(BaseModel):
     rationale: str = Field(..., description="Plain-English why, grounded in the history stats.")
 
 
+class Evidence(BaseModel):
+    """Deterministic, Misfire-authored receipts shown under the advisory.
+
+    None of this is model-authored — it's the raw inputs behind the verdict (a
+    link to the failing run, the history counts the flaky call was computed from)
+    so a reader can verify the claim rather than take it on faith.
+    """
+
+    run_url: Optional[str] = Field(None, description="Link to the failing workflow run.")
+    sampled_runs: Optional[int] = Field(None, description="Recent runs the test was observed in.")
+    failures: Optional[int] = Field(None, description="Of those, how many failed.")
+    failures_on_other: Optional[int] = Field(None, description="Failures on other branches.")
+    retried_and_passed: Optional[int] = Field(None, description="Same-commit fail→pass retries.")
+
+
 class Verdict(BaseModel):
     """The agent's diagnosis of a failing build.
 

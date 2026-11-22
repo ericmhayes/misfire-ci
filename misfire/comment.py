@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from .schema import FlakyClassification, Verdict
+from .schema import Evidence, FlakyClassification, Verdict
 
 # Caps on the free-text, model-authored fields (defense against a hostile log
 # steering the model into a wall of text).
@@ -55,11 +55,35 @@ _FLAKY_LABELS = {
 }
 
 
-def render_comment(verdict: Verdict) -> str:
+def _render_evidence(evidence: Evidence) -> list[str]:
+    """A collapsed, Misfire-authored 'Evidence' block (receipts for the verdict).
+
+    Every value here is computed by Misfire (run link, history counts), never by
+    the model, so it needs no sanitizing — it lets a reader verify the call.
+    """
+    items: list[str] = []
+    if evidence.run_url:
+        items.append(f"- Failing run: {evidence.run_url}")
+    if evidence.sampled_runs is not None:
+        bits = [f"{evidence.failures or 0} failed"]
+        if evidence.failures_on_other:
+            bits.append(f"{evidence.failures_on_other} on other branches")
+        if evidence.retried_and_passed:
+            bits.append(f"{evidence.retried_and_passed}× passed on retry")
+        items.append(
+            f"- History: sampled {evidence.sampled_runs} recent run(s) — " + ", ".join(bits) + "."
+        )
+    if not items:
+        return []
+    return ["", "<details><summary>Evidence</summary>", "", *items, "</details>"]
+
+
+def render_comment(verdict: Verdict, evidence: Evidence | None = None) -> str:
     """Turn the agent's Verdict into the Markdown body posted to the PR.
 
-    Root cause + category + optional fix + confidence, plus the deterministic
-    real-vs-flaky verdict line when a test was implicated.
+    Root cause + category + optional fix + confidence, the deterministic
+    real-vs-flaky verdict line when a test was implicated, and a collapsed
+    Evidence block (run link + history counts) so the call can be verified.
     """
     lines = [
         "### 🔧 Misfire — build failure analysis",
@@ -80,4 +104,6 @@ def render_comment(verdict: Verdict) -> str:
     if verdict.suggested_fix:
         fix = _safe_inline(verdict.suggested_fix, limit=_SUGGESTED_FIX_LIMIT)
         lines += ["", f"**Suggested fix:** {fix}"]
+    if evidence is not None:
+        lines += _render_evidence(evidence)
     return f"{MARKER}\n" + "\n".join(lines) + _FOOTER

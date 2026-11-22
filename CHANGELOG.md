@@ -8,6 +8,11 @@ changes). Dates are absolute (YYYY-MM-DD).
 ## [Unreleased]
 
 ### Added
+- **Evidence block in the advisory** — every comment now carries a collapsed,
+  Misfire-authored "Evidence" section: a link to the failing run and the raw
+  history counts the flaky verdict was computed from (runs sampled, failures,
+  failures on other branches, same-commit retries). Nothing in it is
+  model-authored, so a reader can verify the call instead of trusting it.
 - **Pass-on-retry flaky signal** — the classifier now recognizes the strongest
   flaky evidence GitHub offers: a test that failed on one attempt and passed on a
   re-run of the *same commit*. Since the code didn't change between attempts, a

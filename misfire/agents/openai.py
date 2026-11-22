@@ -54,6 +54,7 @@ def run(
     tools.bind(client)
     tools.bind_history(history_provider or GitHubTestHistoryProvider(client, run_id))
     tools.set_pr_number(pr_number)
+    tools.set_run_id(run_id)
 
     openai_client = openai_client or openai.OpenAI()
     model = model or MODEL

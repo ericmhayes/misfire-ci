@@ -97,3 +97,21 @@ def test_non_numeric_confidence_defaults() -> None:
     _bind()
     body = tools.post_pr_comment(root_cause="x", category="test_assertion", confidence="high")
     assert "**Confidence:** 50%" in body  # coerced to the 0.5 default, no crash
+
+
+def test_evidence_block_carries_run_link_and_history() -> None:
+    client = _bind(TestHistory("t", total_runs=10, failures=2, failures_on_other_commits=1))
+    client.repo = "o/r"  # read by _build_evidence to form the run URL
+    tools.set_run_id(77)
+    try:
+        body = tools.post_pr_comment(
+            root_cause="x",
+            category="test_assertion",
+            confidence=0.5,
+            failing_test_id="tests/t.py::t",
+        )
+    finally:
+        tools.set_run_id(0)  # don't leak the global into other tests
+    assert "actions/runs/77" in body
+    assert "sampled 10 recent run(s)" in body
+    assert client.posts[0][1] == body

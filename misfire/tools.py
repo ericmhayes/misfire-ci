@@ -16,7 +16,7 @@ from . import flaky
 from .comment import MARKER, render_comment
 from .github_client import GitHubClient
 from .history import TestHistory, TestHistoryProvider
-from .schema import FailureCategory, FlakyAssessment, FlakyClassification, Verdict
+from .schema import Evidence, FailureCategory, FlakyAssessment, FlakyClassification, Verdict
 from .scrub import scrub_secrets
 
 
@@ -155,10 +155,12 @@ def post_pr_comment(
         confidence = 0.5
     confidence = max(0.0, min(1.0, confidence))
 
+    history: TestHistory | None = None
     assessment = None
     if failing_test_id:
         try:
-            assessment = flaky.classify(_require_history().get_history(failing_test_id))
+            history = _require_history().get_history(failing_test_id)
+            assessment = flaky.classify(history)
         except Exception:
             # The history lookup can fail (expired run logs 410, GitHub
             # rate-limit, network). Never block a ready advisory on it: degrade to
@@ -176,19 +178,48 @@ def post_pr_comment(
         suggested_fix=suggested_fix,
         flaky=assessment,
     )
-    body = render_comment(verdict)
+    body = render_comment(verdict, _build_evidence(history))
     _require_client().upsert_pr_comment(_PR_NUMBER, body, marker=MARKER)
     return body
+
+
+def _build_evidence(history: TestHistory | None) -> Evidence | None:
+    """Assemble the deterministic receipts shown under the advisory.
+
+    A link to the failing run (when known) plus the raw history counts the flaky
+    verdict was computed from — nothing model-authored.
+    """
+    run_url = None
+    if _RUN_ID:
+        repo = getattr(_client, "repo", None)
+        if repo:
+            run_url = f"https://github.com/{repo}/actions/runs/{_RUN_ID}"
+
+    ev = Evidence(run_url=run_url)
+    if history is not None and history.has_signal:
+        ev.sampled_runs = history.total_runs
+        ev.failures = history.failures
+        ev.failures_on_other = history.failures_on_other_commits
+        ev.retried_and_passed = history.retried_and_passed
+    # Nothing to show (no run link and no usable history) → omit the block.
+    return ev if (run_url or ev.sampled_runs is not None) else None
 
 
 # Set alongside bind(); the model is not asked to supply the PR number for the
 # write, so the comment can only land on the PR under investigation.
 _PR_NUMBER: int = 0
+# The failing run under investigation; used to build the evidence run link.
+_RUN_ID: int = 0
 
 
 def set_pr_number(pr_number: int) -> None:
     global _PR_NUMBER
     _PR_NUMBER = pr_number
+
+
+def set_run_id(run_id: int) -> None:
+    global _RUN_ID
+    _RUN_ID = run_id
 
 
 ALL_TOOLS = [get_failing_logs, get_pr_diff, get_test_history, post_pr_comment]
