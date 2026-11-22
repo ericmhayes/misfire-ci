@@ -135,12 +135,12 @@ only reads logs/diff/history and writes one comment):
  resolve the PR from the run's head commit (if --pr omitted)
         ▼
  agent loop (bounded by a turn cap + token budget):
-   ├─ get_failing_logs → download run logs → truncate → scrub secrets
+   ├─ get_failing_logs → download the FAILING jobs' logs → truncate → scrub secrets
    ├─ get_pr_diff      → unified diff → scrub secrets
    ├─ get_test_history → sample recent runs → deterministic flaky verdict
    └─ post_pr_comment  → render structured Verdict → upsert ONE PR comment
         ▼
- advisory comment on the PR (root cause + category + confidence + flaky verdict)
+ advisory comment on the PR (root cause + category + confidence + flaky verdict + evidence)
 ```
 
 The agent chooses its path: a compile error rarely needs the diff read line by
@@ -169,8 +169,20 @@ Misfire renders the comment deterministically from the model's structured fields
 > **Suggested fix:** revert the status change in `auth.py:42` or update the test
 > if `pending` is intended.
 >
+> <details><summary>Evidence</summary>
+>
+> - Failing run: https://github.com/you/repo/actions/runs/1472
+> - History: sampled 20 recent run(s) — 1 failed, 0 on other branches.
+> </details>
+>
 > ---
 > <sub>🔧 Posted by Misfire — advisory only, nothing was changed or blocked.</sub>
+
+**Evidence block.** Every advisory carries a collapsed, **Misfire-authored**
+Evidence section — a link to the failing run and the raw history counts the flaky
+verdict was computed from (runs sampled, failures, failures on other branches,
+same-commit retries). None of it is model-authored, so you can verify the call
+rather than take it on faith.
 
 **One rolling comment per PR.** Each advisory carries a hidden HTML marker
 (`<!-- misfire:advisory -->`). On the next red run Misfire finds that comment and
@@ -186,6 +198,7 @@ pile of Misfire comments.
 | Confidence | model | self-reported diagnosis confidence (0–100%) |
 | Verdict | **deterministic** | real-vs-flaky from history; only shown when a test is implicated |
 | Suggested fix | model | optional; only when the agent is reasonably confident |
+| Evidence | **deterministic** | run link + the history counts behind the verdict; verifiable, never model-authored |
 
 ---
 
@@ -210,6 +223,17 @@ but it cannot state or override it.
 Confidence is bounded (0.50–0.95) and scaled down for small samples. A single
 failure on an unrelated commit is enough to *lean* flaky; confidence rises with
 how often it fails elsewhere and how much history backs the call.
+
+**Pass-on-retry — the strongest signal.** If a test failed on one attempt and
+then **passed on a re-run of the same commit**, the code didn't change between
+attempts, so a red→green flip is near-proof the failure is non-deterministic.
+Misfire detects this (by comparing a prior attempt's logs against a succeeded
+re-run) and classifies it **likely flaky** with high confidence — outranking the
+cross-commit signal.
+
+**Works beyond pytest.** The failure-marker detection recognizes pytest, Go
+(`--- FAIL`), Jest/Mocha/Vitest (`✕`), and TAP (`not ok`), so the flaky verdict
+holds for non-Python test suites rather than silently defaulting to "real".
 
 **Where history comes from.** Today the provider
 (`GitHubTestHistoryProvider`) reads history on demand from the GitHub REST API —
@@ -243,6 +267,16 @@ misfire analyze --logs ci.log --diff change.diff
   (there is no run history to consult). Secrets in the logs/diff are scrubbed
   before anything is sent to the model.
 
+**Machine-readable output.** Add `--format json` to emit the verdict as JSON
+(`root_cause`, `category`, `confidence`, `classification`, `suggested_fix`)
+instead of Markdown — handy for piping into other tooling. With `--no-ai` the JSON
+carries the heuristic `category` (other fields `null`).
+
+```bash
+misfire analyze --logs ci.log --format json
+misfire analyze --logs ci.log --no-ai --format json | jq .category
+```
+
 ---
 
 ## 8. CLI reference
@@ -257,7 +291,7 @@ environment (set automatically inside the Action) and your provider's API key
 (default `ANTHROPIC_API_KEY`).
 
 ```
-misfire analyze --logs <file|-> [--diff <file>] [--no-ai] [--provider <p>] [--model <m>] [...]
+misfire analyze --logs <file|-> [--diff <file>] [--no-ai] [--format text|json] [--provider <p>] [--model <m>] [...]
 ```
 The local path. Reads logs from a file or stdin (`-`); no GitHub, nothing posted.
 `--no-ai` gives the deterministic summary (no key needed). See [§7](#7-local--offline-use-misfire-analyze).
@@ -271,6 +305,7 @@ The local path. Reads logs from a file or stdin (`-`); no GitHub, nothing posted
 | `--logs` | analyze | path to a log file, or `-` for stdin (required) |
 | `--diff` | analyze | optional path to a unified-diff file |
 | `--no-ai` | analyze | deterministic summary, no model call |
+| `--format` | analyze | `text` (default) or `json` (machine-readable verdict) |
 | `--max-turns` | both (AI) | cap on agent model round-trips (default 12) |
 | `--token-budget` | both (AI) | cap on cumulative input+output tokens (default 200,000) |
 
@@ -293,8 +328,17 @@ The local path. Reads logs from a file or stdin (`-`); no GitHub, nothing posted
 | `max-turns` | no | override the agent turn cap |
 | `token-budget` | no | override the agent token budget |
 
-**Output:** `advisory` — the rendered advisory body (empty when nothing was
-posted). Handy for a follow-on Slack/webhook step; see [§15](#15-slack-notifications).
+**Outputs:**
+
+| Output | Value |
+|--------|-------|
+| `advisory` | the rendered advisory body (empty when nothing was posted) |
+| `classification` | `real` \| `likely_flaky` \| `unknown` (empty when no test was implicated) |
+| `category` | `test_assertion` \| `compile_error` \| `dependency` \| `timeout` \| `infrastructure` \| `unknown` |
+| `confidence` | diagnosis confidence, `0.00`–`1.00` (empty when nothing was posted) |
+
+These let a workflow **route on the result** without parsing Markdown — e.g.
+notify Slack only when `classification == 'real'`. See [§15](#15-slack-notifications).
 
 **Permissions.** Minimal: `contents: read`, `pull-requests: write`,
 `actions: read`.
@@ -323,6 +367,10 @@ CI-LLM tools get abandoned):
   with a per-run log cache within a single investigation.
 - **Post at most once.** `post_pr_comment` is dispatched at most once per run, and
   upserts one comment per PR.
+- **Never fails your CI.** An operational error (provider rate-limit/outage,
+  GitHub API hiccup, expired logs) is caught, reported to the Action log, and
+  exits cleanly — the Misfire step stays green and your build status is
+  unchanged. Advisory means advisory, even when Misfire itself has a bad day.
 
 ---
 
@@ -453,7 +501,10 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
       - name: Notify Slack
-        if: steps.misfire.outputs.advisory != ''
+        # Route on the structured output — e.g. only ping for a likely-real
+        # failure, staying quiet on flaky noise. Drop the classification check to
+        # forward every advisory.
+        if: steps.misfire.outputs.advisory != '' && steps.misfire.outputs.classification == 'real'
         env:
           ADVISORY: ${{ steps.misfire.outputs.advisory }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -461,6 +512,9 @@ jobs:
           jq -nc --arg body "$ADVISORY" '{text: ("🔧 Misfire — build failure analysis:\n" + $body)}' \
             | curl -sS -X POST -H 'Content-type: application/json' --data @- "$SLACK_WEBHOOK_URL"
 ```
+
+The Action also exposes `category` and `confidence` outputs (see
+[§9](#9-github-action-reference)) for finer routing.
 
 Create an Incoming Webhook in your Slack workspace and store its URL as the
 `SLACK_WEBHOOK_URL` repository secret. Passing the advisory through an env var

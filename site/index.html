@@ -97,6 +97,8 @@ tests/test_auth.py:42: AssertionError
 <span class="t-orange">Verdict:</span> <span class="t-real">🔴 Likely a real failure (95%)</span> —
 passed on every recent unrelated run and
 failed only on the commit under test.
+<span class="t-orange">Evidence:</span> run #1472 · sampled 20 runs,
+1 failed (0 on other branches).
 
 <span class="t-com">— advisory only, nothing was changed or blocked.</span></code></pre>
           </div>
@@ -113,12 +115,13 @@ failed only on the commit under test.
         <h2>Trustworthy by design</h2>
       </div>
       <div class="features">
-        <div class="card"><div class="ic">🛟</div><h3>Advisory, never blocking</h3><p>Its only write action is a single PR comment. It never merges, blocks, quarantines, or edits code — a Misfire bug can't break your CI.</p></div>
-        <div class="card"><div class="ic">🎲</div><h3>Real vs. likely flaky</h3><p>A deterministic stats layer over run history classifies the failure — a number the model is told to treat as authoritative and can't fabricate.</p></div>
-        <div class="card"><div class="ic">🔭</div><h3>Logs + diff + history</h3><p>An agent gathers the evidence that matters and connects the failure to the change under test — not a single-shot summary of the log tail.</p></div>
+        <div class="card"><div class="ic">🛟</div><h3>Advisory, never blocking</h3><p>Its only write action is a single PR comment. It never merges, blocks, quarantines, or edits code — and a Misfire bug or provider outage can't break your CI.</p></div>
+        <div class="card"><div class="ic">🎲</div><h3>Real vs. likely flaky</h3><p>A deterministic stats layer over run history classifies the failure — including the strongest signal, a fail→pass retry on the same commit. Works across pytest, Go, Jest &amp; TAP. A number the model can't fabricate.</p></div>
+        <div class="card"><div class="ic">🔭</div><h3>Logs + diff + history</h3><p>An agent gathers the evidence that matters — the <em>failing</em> job's logs, the diff, the test's history — and connects the failure to the change under test, with receipts linked in the comment.</p></div>
         <div class="card"><div class="ic"><svg viewBox="0 0 16 16" width="19" height="19" fill="currentColor" aria-hidden="true"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Z"></path></svg></div><h3>Fork-PR safe</h3><p>The decoupled <code>workflow_run</code> trigger resolves the PR from the head commit, so it works on fork PRs and can't slow your CI job.</p></div>
         <div class="card"><div class="ic">🔒</div><h3>Secret-scrubbed</h3><p>Logs and the diff are redacted before they reach the model, and the comment text is sanitized against HTML/Markdown injection.</p></div>
         <div class="card"><div class="ic">🔌</div><h3>Your provider, your key</h3><p>Runs on <strong>Claude or OpenAI</strong> (pick with <code>--provider</code>), extensible to more. Bring your own API key — Misfire never provides one. Open-source, local <code>--no-ai</code> mode too.</p></div>
+        <div class="card"><div class="ic">📤</div><h3>Routable outputs</h3><p>Beyond the comment: <code>classification</code>, <code>category</code> &amp; <code>confidence</code> as Action outputs — and <code>--format json</code> locally — so you can ping Slack only when it's a real failure.</p></div>
       </div>
     </div>
   </section>
