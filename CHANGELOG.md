@@ -7,6 +7,8 @@ changes). Dates are absolute (YYYY-MM-DD).
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-11-22
+
 ### Added
 - **Structured output** — `misfire analyze --format json` emits the verdict as
   JSON (root cause, category, confidence, real-vs-flaky classification), and the

@@ -6,4 +6,4 @@ single advisory PR comment. Advisory only — it never blocks, merges, or change
 code. Runs on Claude or OpenAI (bring your own key).
 """
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
