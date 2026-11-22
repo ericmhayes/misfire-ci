@@ -34,6 +34,10 @@ class TestHistory:
     failures: int  # of those, how many it failed
     # Failures observed on head SHAs other than the commit under investigation.
     failures_on_other_commits: int
+    # Times the test failed on one attempt and passed on a re-run of the SAME
+    # commit (fail→pass retry). A same-commit flip is near-proof of flakiness —
+    # the strongest signal we have, since the code didn't change between attempts.
+    retried_and_passed: int = 0
 
     @property
     def failure_rate(self) -> float:

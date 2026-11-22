@@ -57,11 +57,38 @@ class GitHubTestHistoryProvider:
         self._window = window
         self._current = None  # resolved RunRef for the failing run (lazy)
         self._logs: dict[int, str] = {}  # run_id -> raw logs (per-instance cache)
+        self._attempts: dict[tuple[int, int], str | None] = {}  # (run_id, attempt) -> logs
 
     def _run_logs(self, run_id: int) -> str:
         if run_id not in self._logs:
             self._logs[run_id] = self._client._download_run_logs(run_id)
         return self._logs[run_id]
+
+    def _attempt_logs(self, run_id: int, attempt: int) -> str | None:
+        """Logs for a specific earlier attempt, or None if unavailable.
+
+        An old attempt's logs can be expired/rate-limited; the retry signal is a
+        bonus, so a fetch failure degrades silently rather than breaking history.
+        """
+        key = (run_id, attempt)
+        if key not in self._attempts:
+            try:
+                self._attempts[key] = self._client.download_run_attempt_logs(run_id, attempt)
+            except Exception:
+                self._attempts[key] = None
+        return self._attempts[key]
+
+    def _is_retry_flip(self, run, test_id: str) -> bool:
+        """True if `test_id` failed in a prior attempt but the run then succeeded.
+
+        A re-run of the *same commit* that flips red→green means the failure was
+        non-deterministic. Only checked for runs that actually needed a re-run
+        (cheap: these are rare), and only against the immediately prior attempt.
+        """
+        if run.conclusion != "success" or run.run_attempt <= 1:
+            return False
+        prior = self._attempt_logs(run.run_id, run.run_attempt - 1)
+        return prior is not None and _test_failed_in_logs(prior, test_id)
 
     def get_history(self, test_id: str, *, current_sha: str | None = None) -> TestHistory:
         if self._current is None:
@@ -75,8 +102,16 @@ class GitHubTestHistoryProvider:
         total = 0
         failures = 0
         failures_on_other = 0
+        retried_and_passed = 0
         for run in runs:
             logs = self._run_logs(run.run_id)
+            # A re-run of the same commit that flipped red→green is strong flaky
+            # evidence even if the latest (green) attempt no longer mentions the
+            # test — detect it from the prior failed attempt.
+            if self._is_retry_flip(run, test_id):
+                total += 1
+                retried_and_passed += 1
+                continue
             # Only count runs where this test actually ran — a run where the test
             # id never appears (e.g. before the test existed, or it was skipped)
             # is not evidence either way, and counting it would inflate the "it
@@ -98,4 +133,5 @@ class GitHubTestHistoryProvider:
             total_runs=total,
             failures=failures,
             failures_on_other_commits=failures_on_other,
+            retried_and_passed=retried_and_passed,
         )

@@ -31,6 +31,7 @@ class RunRef:
     head_sha: str
     conclusion: str  # "success", "failure", "cancelled", ... ("" if still running)
     head_branch: str = ""  # branch the run built; identifies the PR under test
+    run_attempt: int = 1  # attempt number; >1 means the run was re-run
 
 
 @dataclass
@@ -55,16 +56,14 @@ class GitHubClient:
             transport=self.transport,
         )
 
-    def _download_run_logs(self, run_id: int) -> str:
-        """Fetch and concatenate the raw per-step logs for a run (untruncated).
+    def _download_logs_zip(self, path: str) -> str:
+        """Fetch a log-archive endpoint and concatenate its per-step files.
 
         The API returns a zip of per-step log files; we concatenate them, each
-        prefixed with its path. Kept separate from `fetch_failing_logs` so the
-        flaky-history path can search full logs for a test id without the
-        model-facing truncation applied.
+        prefixed with its path.
         """
         with self._client() as client:
-            resp = client.get(f"/repos/{self.repo}/actions/runs/{run_id}/logs")
+            resp = client.get(path)
             resp.raise_for_status()
         archive = zipfile.ZipFile(io.BytesIO(resp.content))
         parts = []
@@ -74,6 +73,24 @@ class GitHubClient:
             text = archive.read(name).decode("utf-8", errors="replace")
             parts.append(f"===== {name} =====\n{text}")
         return "\n".join(parts)
+
+    def _download_run_logs(self, run_id: int) -> str:
+        """Raw per-step logs for a run's latest attempt (untruncated).
+
+        Kept separate from `fetch_failing_logs` so the flaky-history path can
+        search full logs for a test id without the model-facing truncation.
+        """
+        return self._download_logs_zip(f"/repos/{self.repo}/actions/runs/{run_id}/logs")
+
+    def download_run_attempt_logs(self, run_id: int, attempt: int) -> str:
+        """Raw per-step logs for a *specific earlier attempt* of a run.
+
+        Used to detect a fail→pass retry: compare a prior attempt (which may have
+        failed a test) against the latest attempt (which succeeded).
+        """
+        return self._download_logs_zip(
+            f"/repos/{self.repo}/actions/runs/{run_id}/attempts/{attempt}/logs"
+        )
 
     def list_failed_jobs(self, run_id: int) -> list[tuple[int, str]]:
         """Return `(job_id, job_name)` for the run's jobs that *failed*.
@@ -148,6 +165,7 @@ class GitHubClient:
             head_sha=data["head_sha"],
             conclusion=data.get("conclusion") or "",
             head_branch=data.get("head_branch") or "",
+            run_attempt=data.get("run_attempt") or 1,
         )
 
     def list_workflow_runs(self, workflow_id: int, *, limit: int = 20) -> list[RunRef]:
@@ -171,6 +189,7 @@ class GitHubClient:
                 head_sha=r["head_sha"],
                 conclusion=r.get("conclusion") or "",
                 head_branch=r.get("head_branch") or "",
+                run_attempt=r.get("run_attempt") or 1,
             )
             for r in runs
         ]

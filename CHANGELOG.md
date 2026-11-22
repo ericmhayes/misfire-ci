@@ -7,6 +7,13 @@ changes). Dates are absolute (YYYY-MM-DD).
 
 ## [Unreleased]
 
+### Added
+- **Pass-on-retry flaky signal** — the classifier now recognizes the strongest
+  flaky evidence GitHub offers: a test that failed on one attempt and passed on a
+  re-run of the *same commit*. Since the code didn't change between attempts, a
+  red→green flip is near-proof the failure is non-deterministic, and it outranks
+  the cross-commit signal.
+
 ### Changed
 - **Diagnoses read the failing job, not the whole run** — `fetch_failing_logs`
   now pulls only the jobs that actually failed (per-job logs), so on a matrix

@@ -43,6 +43,21 @@ def classify(history: TestHistory) -> FlakyAssessment:
 
     Confidence is additionally scaled down when the observed sample is small.
     """
+    # Strongest signal first: a fail→pass retry on the SAME commit is near-proof
+    # of flakiness — the code didn't change between attempts, so a deterministic
+    # regression couldn't have flipped to green. This outranks the cross-commit
+    # signal and even a thin sample.
+    if history.retried_and_passed >= 1:
+        return FlakyAssessment(
+            classification=FlakyClassification.LIKELY_FLAKY,
+            confidence=0.9,
+            rationale=(
+                f"Failed then passed on a re-run of the same commit "
+                f"({history.retried_and_passed}×) — the failure isn't "
+                "deterministic, a hallmark of a flaky test."
+            ),
+        )
+
     if not history.has_signal:
         return FlakyAssessment(
             classification=FlakyClassification.UNKNOWN,

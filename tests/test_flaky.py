@@ -59,3 +59,27 @@ def test_small_sample_is_discounted() -> None:
 def test_confidence_never_exceeds_ceiling() -> None:
     v = classify(_h(total=100, failures=1, other=0))
     assert v.confidence <= 0.95
+
+
+def _h_retry(total: int, failures: int, other: int, retried: int) -> TestHistory:
+    return TestHistory(
+        "t",
+        total_runs=total,
+        failures=failures,
+        failures_on_other_commits=other,
+        retried_and_passed=retried,
+    )
+
+
+def test_pass_on_retry_is_flaky_with_high_confidence() -> None:
+    v = classify(_h_retry(total=1, failures=0, other=0, retried=1))
+    assert v.classification is FlakyClassification.LIKELY_FLAKY
+    assert v.confidence >= 0.85
+    assert "re-run" in v.rationale
+
+
+def test_pass_on_retry_outranks_a_would_be_real_verdict() -> None:
+    # Clean cross-commit history would normally classify REAL; a same-commit
+    # fail→pass flip overrides that to LIKELY_FLAKY.
+    v = classify(_h_retry(total=20, failures=1, other=0, retried=1))
+    assert v.classification is FlakyClassification.LIKELY_FLAKY

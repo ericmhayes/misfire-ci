@@ -69,10 +69,15 @@ def _format_history(h: TestHistory) -> str:
             f"No recent history found for {h.test_id}. "
             f"Classification: {verdict.classification.value} ({verdict.confidence:.0%})."
         )
+    retry_note = (
+        f" Failed-then-passed on a same-commit re-run {h.retried_and_passed}×."
+        if h.retried_and_passed
+        else ""
+    )
     return (
         f"{h.test_id}: failed {h.failures}/{h.total_runs} recent runs "
         f"({h.failure_rate:.0%}); {h.failures_on_other_commits} of those failures were on "
-        f"commits other than the one under test. "
+        f"commits other than the one under test.{retry_note} "
         f"Classification: {verdict.classification.value} ({verdict.confidence:.0%}) — "
         f"{verdict.rationale}"
     )
