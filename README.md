@@ -12,6 +12,7 @@
   <a href="https://pypi.org/project/misfire-ci/"><img src="https://img.shields.io/pypi/v/misfire-ci?v=011" alt="PyPI"></a>
   <a href="https://pypi.org/project/misfire-ci/"><img src="https://img.shields.io/pypi/pyversions/misfire-ci?v=011" alt="Python"></a>
   <a href="https://github.com/ericmhayes/misfire-ci/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
+  <a href="https://github.com/marketplace/actions/misfire"><img src="https://img.shields.io/badge/Marketplace-Misfire-FF7A1A?logo=githubactions&logoColor=white" alt="GitHub Marketplace"></a>
 </p>
 
 An open-source GitHub Action that, when a build goes red, runs an **agentic AI

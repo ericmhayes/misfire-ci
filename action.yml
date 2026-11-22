@@ -1,5 +1,5 @@
 name: "Misfire"
-description: "Know why the build misfired — agentic CI failure analysis posted as an advisory PR comment."
+description: "Know why the build misfired — agentic CI-failure analysis with real-vs-flaky test detection, posted as an advisory PR comment. Bring your own key."
 branding:
   icon: "alert-triangle"
   color: "orange"
