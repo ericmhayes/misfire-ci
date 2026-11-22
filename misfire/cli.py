@@ -11,12 +11,51 @@ needs no key.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 
-from . import local, providers
+from . import local, providers, tools
 from .comment import MARKER
 from .github_client import GitHubClient
+
+
+def _verdict_to_json(verdict) -> dict:
+    """Machine-readable view of a Verdict (stable key set)."""
+    return {
+        "root_cause": verdict.root_cause,
+        "category": verdict.category.value,
+        "confidence": round(verdict.confidence, 2),
+        "classification": verdict.flaky.classification.value if verdict.flaky else None,
+        "suggested_fix": verdict.suggested_fix,
+    }
+
+
+def _logs_only_json(logs: str) -> dict:
+    """Same key set, for when there's no model verdict (--no-ai, or no advisory)."""
+    return {
+        "root_cause": None,
+        "category": local.categorize(logs).value,
+        "confidence": None,
+        "classification": None,
+        "suggested_fix": None,
+    }
+
+
+def _emit_action_outputs(verdict) -> None:
+    """Write classification/category/confidence to $GITHUB_OUTPUT when present.
+
+    Lets a workflow route on the result (e.g. notify only when classification is
+    `real`) without parsing the advisory markdown. No-op outside Actions.
+    """
+    path = os.environ.get("GITHUB_OUTPUT")
+    if not path or verdict is None:
+        return
+    data = _verdict_to_json(verdict)
+    with open(path, "a", encoding="utf-8") as fh:
+        fh.write(f"classification={data['classification'] or ''}\n")
+        fh.write(f"category={data['category']}\n")
+        fh.write(f"confidence={data['confidence']}\n")
 
 
 def _github_client() -> GitHubClient:
@@ -114,6 +153,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Deterministic rule-based summary with no model call (offline fallback).",
     )
+    analyze.add_argument(
+        "--format",
+        choices=["text", "json"],
+        default="text",
+        help="Output format: text (default) or json (machine-readable verdict).",
+    )
     _add_provider_arg(analyze)
     analyze.add_argument(
         "--max-turns", type=int, default=None, help="AI mode: cap model round-trips."
@@ -128,20 +173,26 @@ def main(argv: list[str] | None = None) -> int:
         logs = _read_text(args.logs)
         diff = _read_text(args.diff) if args.diff else None
         if args.no_ai:
-            print(local.summarize(logs, diff))
+            if args.format == "json":
+                print(json.dumps(_logs_only_json(logs)))
+            else:
+                print(local.summarize(logs, diff))
             return 0
         if not _require_key(args.provider):
             return 2
-        print(
-            local.analyze_with_ai(
-                logs,
-                diff,
-                provider=args.provider,
-                model=args.model,
-                max_turns=args.max_turns,
-                token_budget=args.token_budget,
-            )
+        body = local.analyze_with_ai(
+            logs,
+            diff,
+            provider=args.provider,
+            model=args.model,
+            max_turns=args.max_turns,
+            token_budget=args.token_budget,
         )
+        if args.format == "json":
+            verdict = tools.last_verdict()
+            print(json.dumps(_verdict_to_json(verdict) if verdict else _logs_only_json(logs)))
+        else:
+            print(body)
         return 0
 
     if args.command == "explain":
@@ -174,6 +225,7 @@ def main(argv: list[str] | None = None) -> int:
                 limits["token_budget"] = args.token_budget
             run_fn = providers.get_run(args.provider)
             body = run_fn(run_id=args.run, pr_number=pr_number, client=client, **limits)
+            _emit_action_outputs(tools.last_verdict())
         except Exception as exc:
             # Misfire is advisory-only: an operational failure here — provider
             # rate-limit/outage, GitHub API error, expired logs, a missing

@@ -8,6 +8,11 @@ changes). Dates are absolute (YYYY-MM-DD).
 ## [Unreleased]
 
 ### Added
+- **Structured output** — `misfire analyze --format json` emits the verdict as
+  JSON (root cause, category, confidence, real-vs-flaky classification), and the
+  Action now exposes `classification`, `category`, and `confidence` outputs
+  alongside `advisory`. Route notifications on the result (e.g. Slack only when
+  `classification == real`) or feed other systems without parsing Markdown.
 - **Evidence block in the advisory** — every comment now carries a collapsed,
   Misfire-authored "Evidence" section: a link to the failing run and the raw
   history counts the flaky verdict was computed from (runs sampled, failures,

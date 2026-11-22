@@ -55,6 +55,15 @@ outputs:
   advisory:
     description: "The rendered advisory body (empty when nothing was posted). Handy for Slack/webhook steps."
     value: ${{ steps.explain.outputs.advisory }}
+  classification:
+    description: "Real-vs-flaky call: real | likely_flaky | unknown (empty when no test was implicated)."
+    value: ${{ steps.explain.outputs.classification }}
+  category:
+    description: "Failure bucket: test_assertion | compile_error | dependency | timeout | infrastructure | unknown."
+    value: ${{ steps.explain.outputs.category }}
+  confidence:
+    description: "Model confidence in the diagnosis, 0.00–1.00 (empty when nothing was posted)."
+    value: ${{ steps.explain.outputs.confidence }}
 
 runs:
   using: "composite"

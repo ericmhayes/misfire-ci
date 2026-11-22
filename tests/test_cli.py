@@ -6,9 +6,12 @@ and no real key are involved.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from misfire import cli
+from misfire.schema import FailureCategory, FlakyAssessment, FlakyClassification, Verdict
 
 
 @pytest.fixture(autouse=True)
@@ -104,3 +107,65 @@ def test_analyze_no_ai_needs_no_key(monkeypatch, capsys, tmp_path) -> None:
     log.write_text("ModuleNotFoundError: No module named 'requests'\n")
     assert cli.main(["analyze", "--logs", str(log), "--no-ai"]) == 0
     assert "`dependency`" in capsys.readouterr().out
+
+
+def test_analyze_no_ai_json(monkeypatch, capsys, tmp_path) -> None:
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    log = tmp_path / "ci.log"
+    log.write_text("ModuleNotFoundError: No module named 'requests'\n")
+    assert cli.main(["analyze", "--logs", str(log), "--no-ai", "--format", "json"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data == {
+        "root_cause": None,
+        "category": "dependency",
+        "confidence": None,
+        "classification": None,
+        "suggested_fix": None,
+    }
+
+
+def test_analyze_ai_json_from_verdict(monkeypatch, capsys, tmp_path) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "x")
+    log = tmp_path / "ci.log"
+    log.write_text("E AssertionError\n")
+    verdict = Verdict(
+        root_cause="the change broke the assertion",
+        category=FailureCategory.TEST_ASSERTION,
+        confidence=0.9,
+        suggested_fix="revert it",
+        flaky=FlakyAssessment(
+            classification=FlakyClassification.REAL, confidence=0.8, rationale="r"
+        ),
+    )
+    monkeypatch.setattr(cli.local, "analyze_with_ai", lambda *a, **k: "BODY")
+    monkeypatch.setattr(cli.tools, "last_verdict", lambda: verdict)
+
+    assert cli.main(["analyze", "--logs", str(log), "--format", "json"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["category"] == "test_assertion"
+    assert data["classification"] == "real"
+    assert data["confidence"] == 0.9
+    assert data["root_cause"] == "the change broke the assertion"
+
+
+def test_emit_action_outputs_writes_github_output(monkeypatch, tmp_path) -> None:
+    out = tmp_path / "gh_output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(out))
+    verdict = Verdict(
+        root_cause="x",
+        category=FailureCategory.TIMEOUT,
+        confidence=0.73,
+        flaky=FlakyAssessment(
+            classification=FlakyClassification.LIKELY_FLAKY, confidence=0.6, rationale="r"
+        ),
+    )
+    cli._emit_action_outputs(verdict)
+    written = out.read_text()
+    assert "classification=likely_flaky" in written
+    assert "category=timeout" in written
+    assert "confidence=0.73" in written
+
+
+def test_emit_action_outputs_noop_without_env(monkeypatch) -> None:
+    monkeypatch.delenv("GITHUB_OUTPUT", raising=False)
+    cli._emit_action_outputs(None)  # must not raise

@@ -178,6 +178,8 @@ def post_pr_comment(
         suggested_fix=suggested_fix,
         flaky=assessment,
     )
+    global _LAST_VERDICT
+    _LAST_VERDICT = verdict  # surfaced for machine-readable outputs (CLI / Action)
     body = render_comment(verdict, _build_evidence(history))
     _require_client().upsert_pr_comment(_PR_NUMBER, body, marker=MARKER)
     return body
@@ -218,8 +220,19 @@ def set_pr_number(pr_number: int) -> None:
 
 
 def set_run_id(run_id: int) -> None:
-    global _RUN_ID
+    global _RUN_ID, _LAST_VERDICT
     _RUN_ID = run_id
+    _LAST_VERDICT = None  # reset at the start of each run (set_run_id is called once)
+
+
+# The Verdict from the most recent post_pr_comment this run — read by the CLI to
+# emit machine-readable outputs (JSON / Action outputs). None until one is built.
+_LAST_VERDICT: "Verdict | None" = None
+
+
+def last_verdict() -> "Verdict | None":
+    """The structured Verdict from this run's advisory, or None if none posted."""
+    return _LAST_VERDICT
 
 
 ALL_TOOLS = [get_failing_logs, get_pr_diff, get_test_history, post_pr_comment]
