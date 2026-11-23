@@ -77,12 +77,19 @@ runs:
       shell: bash
       env:
         PROVIDER: ${{ inputs.provider }}
+        ACTION_REF: ${{ github.action_ref }}
       run: |
-        pip install misfire-ci
-        # OpenAI (and OpenAI-compatible endpoints) need the optional SDK.
-        if [ "${PROVIDER}" = "openai" ]; then
-          pip install "misfire-ci[openai]"
+        # Pin the package to the exact release when invoked via a vX.Y.Z tag, so a
+        # pinned action ref installs matching behavior. A floating ref (@v0) or a
+        # branch falls through to the latest on PyPI.
+        VER=""
+        if [[ "${ACTION_REF}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          VER="==${ACTION_REF#v}"
         fi
+        # OpenAI (and OpenAI-compatible endpoints) need the optional SDK.
+        EXTRA=""
+        if [ "${PROVIDER}" = "openai" ]; then EXTRA="[openai]"; fi
+        pip install "misfire-ci${EXTRA}${VER}"
 
     - name: Explain failure
       id: explain

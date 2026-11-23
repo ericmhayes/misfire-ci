@@ -7,6 +7,15 @@ changes). Dates are absolute (YYYY-MM-DD).
 
 ## [Unreleased]
 
+## [0.1.5] — 2026-11-23
+
+### Changed
+- **The Action pins the package to its ref** — when used via a version tag
+  (`ericmhayes/misfire-ci@v0.1.5`), the Action now installs the matching
+  `misfire-ci==0.1.5` instead of whatever is newest on PyPI, so a pinned ref gives
+  reproducible behavior. A floating ref (`@v0`) or a branch still tracks the
+  latest. (Previously every ref installed the newest release.)
+
 ## [0.1.4] — 2026-11-23
 
 ### Changed
