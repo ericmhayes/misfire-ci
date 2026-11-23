@@ -33,6 +33,25 @@ python -m pytest -q          # unit tests
 offline and deterministic — no API key, no network (the model is scripted and the
 GitHub client is faked; see `misfire/testkit.py`).
 
+## Sign your commits (DCO)
+
+This project uses the [Developer Certificate of Origin](DCO) — a lightweight
+way for you to certify that you wrote the contribution, or otherwise have the
+right to submit it under the project's MIT license. There's nothing to sign:
+just add a sign-off line to each commit with the `-s` flag.
+
+```bash
+git commit -s -m "your message"
+```
+
+That appends `Signed-off-by: Your Name <you@example.com>` using your git
+identity. A CI check verifies every commit in a PR is signed off; if you forget:
+
+```bash
+git commit --amend -s          # fix the last commit
+git rebase --signoff main      # fix all commits on your branch, then force-push
+```
+
 ## Making a change
 
 1. Branch off `main`.
@@ -40,7 +59,8 @@ GitHub client is faked; see `misfire/testkit.py`).
 3. Add/adjust tests. New behavior needs a test.
 4. Update docs (`README.md` / `docs/GUIDE.md`) when behavior changes.
 5. Add a line under `## [Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md).
-6. Open a PR; fill in the template. CI must be green.
+6. Sign off your commits (`git commit -s`) — see above.
+7. Open a PR; fill in the template. CI must be green.
 
 ## Adding an AI provider
 
