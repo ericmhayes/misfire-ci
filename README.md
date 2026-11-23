@@ -74,6 +74,10 @@ associated PR (e.g. a push straight to the default branch).
 Add your `ANTHROPIC_API_KEY` as a repository secret (bring-your-own-key). The
 built-in `GITHUB_TOKEN` supplies the pull-request-write / actions-read scopes.
 
+Use `@v0` to track the latest `0.x` (you get fixes automatically), or pin a
+release like `@v0.1.5` for reproducible behavior — the Action installs the
+matching `misfire-ci` version either way.
+
 ## Local / offline use
 
 Analyze logs straight from a file or stdin — no GitHub, nothing posted. The

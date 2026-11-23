@@ -156,7 +156,7 @@ and computes the flaky verdict itself.
 Misfire renders the comment deterministically from the model's structured fields
 — the model does not write raw Markdown. A typical comment:
 
-> ### 🔧 Misfire — build failure analysis
+> ### ![Misfire](https://raw.githubusercontent.com/ericmhayes/misfire-ci/main/docs/brand/png/misfire-icon-light-16.png) Misfire — build failure analysis
 >
 > **Root cause:** `auth.py:42` changed the status from `active` to `pending`, so
 > `test_auth_status` now fails its assertion.
@@ -342,6 +342,13 @@ notify Slack only when `classification == 'real'`. See [§15](#15-slack-notifica
 
 **Permissions.** Minimal: `contents: read`, `pull-requests: write`,
 `actions: read`.
+
+**Pinning the version.** The Action installs the `misfire-ci` package to match
+the ref you use. Pin a release for reproducibility, or float with the major tag:
+
+- `ericmhayes/misfire-ci@v0.1.5` → installs exactly `misfire-ci==0.1.5`.
+- `ericmhayes/misfire-ci@v0` → tracks the latest `0.x` release (recommended for
+  most; you get fixes automatically).
 
 **Fork PRs & secrets.** The `workflow_run` pattern runs Misfire in the *base*
 repo's context, so secrets and a write token are available even when CI itself
