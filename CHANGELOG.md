@@ -7,6 +7,13 @@ changes). Dates are absolute (YYYY-MM-DD).
 
 ## [Unreleased]
 
+## [0.1.6] — 2026-11-23
+
+### Changed
+- **GitHub Marketplace listing** — the Action is published to the Marketplace for
+  discoverability. The action description is tuned for search (real-vs-flaky,
+  bring-your-own-key) and the README gains a Marketplace badge. No behavior change.
+
 ## [0.1.5] — 2026-11-23
 
 ### Changed
