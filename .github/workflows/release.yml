@@ -67,7 +67,21 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" dist/* --generate-notes --title "${GITHUB_REF_NAME}"
+        run: |
+          # Release body = the matching CHANGELOG section (what actually changed),
+          # so the notes aren't just the PR title. Fall back to auto-generated
+          # notes if the section is missing/empty.
+          version="${GITHUB_REF_NAME#v}"
+          awk -v ver="$version" '
+            $0 ~ ("^## \\[" ver "\\]") {flag=1; next}
+            /^## \[/ && flag {exit}
+            flag {print}
+          ' CHANGELOG.md > notes.md
+          if grep -q "[^[:space:]]" notes.md; then
+            gh release create "${GITHUB_REF_NAME}" dist/* --title "${GITHUB_REF_NAME}" --notes-file notes.md
+          else
+            gh release create "${GITHUB_REF_NAME}" dist/* --title "${GITHUB_REF_NAME}" --generate-notes
+          fi
       - name: Move the floating major tag
         run: |
           major="v$(echo "${GITHUB_REF_NAME#v}" | cut -d. -f1)"
