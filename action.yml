@@ -100,6 +100,9 @@ runs:
         MAX_TURNS: ${{ inputs.max-turns }}
         TOKEN_BUDGET: ${{ inputs.token-budget }}
       run: |
+        # An unset openai-base-url arrives as "" and would override the OpenAI
+        # SDK default (breaking the connection); drop it so api.openai.com is used.
+        if [ -z "${OPENAI_BASE_URL}" ]; then unset OPENAI_BASE_URL; fi
         # Build args as a quoted array so an input can't word-split into extra flags.
         args=(--run "${RUN_ID}" --provider "${PROVIDER}")
         if [ -n "${MODEL}" ]; then args+=(--model "${MODEL}"); fi

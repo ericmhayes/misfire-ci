@@ -7,6 +7,16 @@ changes). Dates are absolute (YYYY-MM-DD).
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-11-23
+
+### Fixed
+- **OpenAI provider connection failure when no base URL is set** — the Action
+  passes an unset `openai-base-url` through as an empty string, and the OpenAI SDK
+  treated that empty `OPENAI_BASE_URL` as a base-URL override rather than falling
+  back to `api.openai.com`, raising `APIConnectionError`. The adapter now drops an
+  empty `OPENAI_BASE_URL`, and the Action unsets it when blank. (Found by
+  dogfooding Misfire on its own demo repo.)
+
 ## [0.1.2] — 2026-11-22
 
 ### Added

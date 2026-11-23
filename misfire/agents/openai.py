@@ -12,6 +12,7 @@ else is shared, so adding a provider is just another adapter like this one.
 from __future__ import annotations
 
 import json
+import os
 
 import openai
 
@@ -32,6 +33,19 @@ MODEL = "gpt-4o"
 # not change the cost ceiling.
 DEFAULT_MAX_TURNS = 12
 DEFAULT_TOKEN_BUDGET = 200_000
+
+
+def _normalize_base_url_env() -> None:
+    """Drop an empty ``OPENAI_BASE_URL`` so it doesn't break the SDK default.
+
+    The GitHub Action passes an unset ``openai-base-url`` input through as an empty
+    string. The OpenAI SDK treats a present-but-empty ``OPENAI_BASE_URL`` as a base
+    URL *override* (not "use the default"), so requests go nowhere and raise
+    ``APIConnectionError``. Removing the empty var restores ``api.openai.com``.
+    Found by dogfooding Misfire on the demo repo.
+    """
+    if not os.environ.get("OPENAI_BASE_URL", "").strip():
+        os.environ.pop("OPENAI_BASE_URL", None)
 
 
 def run(
@@ -56,6 +70,7 @@ def run(
     tools.set_pr_number(pr_number)
     tools.set_run_id(run_id)
 
+    _normalize_base_url_env()
     openai_client = openai_client or openai.OpenAI()
     model = model or MODEL
     user = f"CI run {run_id} on PR #{pr_number} failed. Investigate and post the analysis."

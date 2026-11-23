@@ -7,6 +7,8 @@ scripted OpenAI client and a counting GitHub client.
 
 from __future__ import annotations
 
+import os
+
 from misfire.agents import openai as openai_adapter
 from misfire.testkit import ScriptedOpenAI, oa_final, oa_tool_use
 
@@ -65,3 +67,17 @@ def test_no_post_returns_empty_string() -> None:
 
     assert client.posts == []
     assert body == ""
+
+
+def test_empty_openai_base_url_is_dropped(monkeypatch) -> None:
+    # The Action passes an unset openai-base-url through as "" — it must not
+    # override the SDK default (that caused APIConnectionError in the wild).
+    monkeypatch.setenv("OPENAI_BASE_URL", "")
+    openai_adapter._normalize_base_url_env()
+    assert "OPENAI_BASE_URL" not in os.environ
+
+
+def test_real_openai_base_url_is_preserved(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://models.github.ai/inference")
+    openai_adapter._normalize_base_url_env()
+    assert os.environ["OPENAI_BASE_URL"] == "https://models.github.ai/inference"
