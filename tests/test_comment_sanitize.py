@@ -23,8 +23,10 @@ def _verdict(**over) -> Verdict:
 
 def test_strips_raw_html() -> None:
     out = render_comment(_verdict(root_cause="<img src=x onerror=alert(1)> broke it"))
-    assert "<img" not in out
-    assert "&lt;img" in out
+    # The model's raw tag never survives — only the escaped form does. (The header
+    # carries a trusted brand <img>, so assert on the model's specific payload.)
+    assert "<img src=x onerror=" not in out
+    assert "&lt;img src=x onerror=alert(1)&gt;" in out
 
 
 def test_neutralizes_links_and_images() -> None:

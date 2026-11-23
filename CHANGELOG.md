@@ -7,6 +7,13 @@ changes). Dates are absolute (YYYY-MM-DD).
 
 ## [Unreleased]
 
+## [0.1.4] — 2026-11-23
+
+### Changed
+- **Advisory header shows the Misfire logo** — the comment title now leads with
+  the brand icon (an absolute PNG GitHub proxies; reads on light and dark themes)
+  instead of a wrench emoji.
+
 ## [0.1.3] — 2026-11-23
 
 ### Fixed

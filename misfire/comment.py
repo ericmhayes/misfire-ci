@@ -41,6 +41,18 @@ def _safe_inline(text: str, *, limit: int) -> str:
 # its own prior comment (upsert) instead of posting a new one each run.
 MARKER = "<!-- misfire:advisory -->"
 
+# Brand icon shown in the comment header. An absolute raw URL to a PNG (GitHub
+# proxies it); the app-icon tile carries its own background so it reads on both
+# light and dark themes. Pinned to main, where the asset lives.
+_ICON_URL = (
+    "https://raw.githubusercontent.com/ericmhayes/misfire-ci/main/"
+    "docs/brand/png/misfire-icon-light-64.png"
+)
+_HEADER = (
+    f'### <img src="{_ICON_URL}" width="20" align="top" alt="Misfire"> '
+    "Misfire — build failure analysis"
+)
+
 _FOOTER = (
     "\n\n---\n"
     "<sub>🔧 Posted by [Misfire](https://github.com/ericmhayes/misfire-ci) — "
@@ -86,7 +98,7 @@ def render_comment(verdict: Verdict, evidence: Evidence | None = None) -> str:
     Evidence block (run link + history counts) so the call can be verified.
     """
     lines = [
-        "### 🔧 Misfire — build failure analysis",
+        _HEADER,
         "",
         f"**Root cause:** {_safe_inline(verdict.root_cause, limit=_ROOT_CAUSE_LIMIT)}",
         f"**Category:** `{verdict.category.value}`",

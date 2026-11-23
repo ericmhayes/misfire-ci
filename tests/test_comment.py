@@ -31,6 +31,12 @@ def test_renders_core_fields_and_footer() -> None:
     assert "advisory only" in out  # footer
 
 
+def test_header_shows_the_brand_icon() -> None:
+    out = render_comment(_verdict())
+    assert "misfire-icon-light-64.png" in out  # logo in the header
+    assert "Misfire — build failure analysis" in out
+
+
 def test_omits_flaky_line_when_no_test_implicated() -> None:
     out = render_comment(_verdict(flaky=None))
     assert "**Verdict:**" not in out
