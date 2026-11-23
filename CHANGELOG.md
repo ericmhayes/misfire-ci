@@ -7,6 +7,14 @@ changes). Dates are absolute (YYYY-MM-DD).
 
 ## [Unreleased]
 
+## [0.1.7] — 2026-11-23
+
+### Changed
+- **Marketplace metadata** — the Action is renamed to **Misfire CI** (the
+  Marketplace name must be globally unique) and the description shortened to meet
+  the Marketplace 125-character limit. Branding (alert-triangle / orange) and
+  behavior are unchanged.
+
 ## [0.1.6] — 2026-11-23
 
 ### Changed
