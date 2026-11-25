@@ -1,5 +1,6 @@
-"""Entrypoint. Two subcommands:
+"""Entrypoint. Three subcommands:
 
+    misfire init [--ci-workflow <name>] [--provider <p>]         # scaffold the workflow
     misfire explain --run <run_id> [--pr <n>] [--provider <p>]   # GitHub: fetch + comment
     misfire analyze --logs <file|-> [--no-ai] [--provider <p>]   # local: analyze, print
 
@@ -15,7 +16,7 @@ import json
 import os
 import sys
 
-from . import local, providers, tools
+from . import local, providers, scaffold, tools
 from .comment import MARKER
 from .github_client import GitHubClient
 
@@ -167,7 +168,39 @@ def main(argv: list[str] | None = None) -> int:
         "--token-budget", type=int, default=None, help="AI mode: cap cumulative tokens."
     )
 
+    init = sub.add_parser(
+        "init",
+        help="Scaffold .github/workflows/misfire.yml into the current repo.",
+    )
+    init.add_argument(
+        "--ci-workflow",
+        default=None,
+        help="Name of the CI workflow to watch. Auto-detected when omitted.",
+    )
+    init.add_argument(
+        "--provider",
+        choices=providers.names(),
+        default=providers.DEFAULT_PROVIDER,
+        help=f"Provider to wire up (default: {providers.DEFAULT_PROVIDER}).",
+    )
+    init.add_argument(
+        "--path", default=None, help=f"Output path (default: {scaffold.DEFAULT_PATH})."
+    )
+    init.add_argument(
+        "--force", action="store_true", help="Overwrite the workflow if it already exists."
+    )
+
     args = parser.parse_args(argv)
+
+    if args.command == "init":
+        code, message = scaffold.init(
+            ci_workflow=args.ci_workflow,
+            provider=args.provider,
+            path=args.path,
+            force=args.force,
+        )
+        print(message, file=sys.stderr if code else sys.stdout)
+        return code
 
     if args.command == "analyze":
         logs = _read_text(args.logs)

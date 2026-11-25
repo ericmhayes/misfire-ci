@@ -134,7 +134,7 @@ failed only on the commit under test.
         <h2>Three steps</h2>
       </div>
       <div class="steps">
-        <div class="step"><div class="n">1</div><h3>Add the workflow</h3><p>Drop in a <code>workflow_run</code> workflow that watches your CI, and add your provider's API key as a secret (you bring your own).</p></div>
+        <div class="step"><div class="n">1</div><h3>Add the workflow</h3><p>Run <code>misfire init</code> (or drop in a <code>workflow_run</code> workflow by hand) to watch your CI, then add your provider's API key as a secret — you bring your own.</p></div>
         <div class="step"><div class="n">2</div><h3>A build goes red</h3><p>Misfire fires only on failures. It reads the failing logs, the diff, and the failing test's history.</p></div>
         <div class="step"><div class="n">3</div><h3>Read the advisory</h3><p>One rolling comment per PR: root cause, category, confidence, and the real-vs-flaky verdict.</p></div>
       </div>

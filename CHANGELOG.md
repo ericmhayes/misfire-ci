@@ -7,6 +7,12 @@ changes). Dates are absolute (YYYY-MM-DD).
 
 ## [Unreleased]
 
+### Added
+- **`misfire init`** — scaffolds `.github/workflows/misfire.yml` into the current
+  repo, auto-detecting the CI workflow to watch. Collapses setup to one command
+  (`pip install misfire-ci && misfire init`). Flags: `--ci-workflow`, `--provider`,
+  `--path`, `--force`.
+
 ## [0.1.7] — 2026-11-23
 
 ### Changed
