@@ -40,6 +40,10 @@ when you switch provider with `--provider`.
 
 ## Usage
 
+**Fastest path:** `pip install misfire-ci && misfire init` scaffolds the workflow
+below for you — it auto-detects your CI workflow's name. Then add your API key
+secret and commit. Prefer to do it by hand?
+
 Add a workflow that runs **after** your CI workflow and comments on red builds.
 Using the decoupled `workflow_run` trigger means Misfire gets a write-scoped
 token (so it works on fork PRs) and can never block or slow your CI job:

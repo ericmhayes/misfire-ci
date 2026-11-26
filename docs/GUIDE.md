@@ -83,6 +83,12 @@ behind a seam in `misfire/agents/`, so adding one is easy. See
 
 ## 3. Quickstart — the GitHub Action
 
+**One command:** `pip install misfire-ci && misfire init` writes the workflow
+below into `.github/workflows/misfire.yml`, auto-detecting the name of your CI
+workflow to watch. Then add your provider key as a secret and commit. Flags:
+`--ci-workflow <name>` to set the watched workflow explicitly, `--provider openai`
+to wire up OpenAI, `--force` to overwrite. Or add the file by hand:
+
 Add a workflow that runs **after** your CI workflow completes. Using the
 decoupled `workflow_run` trigger means Misfire gets a write-scoped token (so it
 works on fork PRs) and can never block or slow your actual CI job.
@@ -280,6 +286,13 @@ misfire analyze --logs ci.log --no-ai --format json | jq .category
 ---
 
 ## 8. CLI reference
+
+```
+misfire init [--ci-workflow <name>] [--provider <p>] [--path <file>] [--force]
+```
+Scaffolds `.github/workflows/misfire.yml` into the current repo (auto-detecting
+the CI workflow to watch). No GitHub, no network — just writes the file and prints
+the next step. Won't overwrite an existing workflow unless `--force` is given.
 
 ```
 misfire explain --run <id> [--pr <n>] [--provider <p>] [--model <m>] [--max-turns <n>] [--token-budget <n>]
